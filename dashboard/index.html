@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — pre-token protocols ranked by a fitted implied value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <h1>TOKEN RADAR</h1>
+    <p class="tagline">Every protocol in the snapshot that records no token, ranked by an implied launch value fitted from the snapshot's own tokenized protocols — with the model's out-of-sample error printed, not hidden.</p>
+  </div>
+  <div class="snapshot-note">
+    <div>Snapshot: <strong data-fill="as_of">—</strong></div>
+    <div class="src" data-fill="source">—</div>
+    <div><span data-fill="protocols">—</span> protocols · watchlist floor $<span data-fill="floor">—</span></div>
+  </div>
+</header>
+
+<section class="kpis" aria-label="Headline figures">
+  <div class="kpi hero">
+    <div class="kpi-label">Implied value on the board</div>
+    <div class="kpi-value" data-fill="total_implied">—</div>
+    <div class="kpi-sub">sum of implied values, all ranked protocols</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Protocols ranked</div>
+    <div class="kpi-value" data-fill="board_rows">—</div>
+    <div class="kpi-sub"><span data-fill="self_found">—</span> found beyond the watchlist</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Watchlist covered</div>
+    <div class="kpi-value"><span data-fill="watch_covered">—</span><span class="kpi-dim"> / </span><span data-fill="watch_total">—</span></div>
+    <div class="kpi-sub">every watchlist protocol is on the board</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Model error, out-of-sample</div>
+    <div class="kpi-value"><span data-fill="oos_median_ape">—</span><span class="kpi-dim"> median</span></div>
+    <div class="kpi-sub">held-out test, n=<span data-fill="oos_n">—</span> · median factor ×/<span data-fill="oos_factor">—</span></div>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Views">
+  <button class="tab active" data-view="board" type="button">The board</button>
+  <button class="tab" data-view="live" type="button">Already trading</button>
+  <button class="tab" data-view="method" type="button">How the model works</button>
+</nav>
+
+<section id="view-board" class="view">
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search name or slug…" aria-label="Search protocols">
+    <select id="f-category" aria-label="Filter by category"><option value="">All categories</option></select>
+    <select id="f-chain" aria-label="Filter by chain"><option value="">All chains</option></select>
+    <label class="check"><input id="f-watch" type="checkbox"> Watchlist only</label>
+    <span class="count" id="row-count"></span>
+  </div>
+  <div class="table-wrap">
+    <table id="board-table">
+      <thead>
+        <tr>
+          <th data-sort="rank" class="num">Rank</th>
+          <th data-sort="name">Protocol</th>
+          <th data-sort="category">Category</th>
+          <th>Chains</th>
+          <th data-sort="tvl_usd" class="num">TVL</th>
+          <th data-sort="change_7d" class="num">7d TVL</th>
+          <th data-sort="multiple_used" class="num">Multiple</th>
+          <th data-sort="implied_value_usd" class="num">Implied value</th>
+        </tr>
+      </thead>
+      <tbody id="board-body"></tbody>
+    </table>
+  </div>
+  <p class="hint">Click a row for the protocol's arithmetic and its farm plan. Click a column heading to sort.</p>
+
+  <h2 class="section-title">Fitted multiples by category</h2>
+  <p class="section-sub">Median market-cap / TVL of the tokenized protocols in each category the board actually draws on, shrunk toward the global median (<span data-fill="global_multiple">—</span>) by n/(n+4). One hue, magnitude only; the axis starts at zero.</p>
+  <div id="cat-chart"></div>
+</section>
+
+<section id="view-live" class="view hidden">
+  <p class="section-sub">The tokenized side of the snapshot, kept apart from the board: these protocols already trade, so the radar never ranks them. Their market caps are the data the model is fitted on — the top <span data-fill="live_shown">—</span> of <span data-fill="live_total">—</span> by market cap.</p>
+  <div class="table-wrap">
+    <table id="live-table">
+      <thead><tr><th>Protocol</th><th>Symbol</th><th>Category</th><th class="num">TVL</th><th class="num">Market cap</th><th class="num">Multiple</th><th class="num">7d TVL</th></tr></thead>
+      <tbody id="live-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="view-method" class="view hidden">
+  <div class="method-grid">
+    <article class="panel">
+      <h2>The model</h2>
+      <p>For every tokenized protocol in the snapshot, the market's own multiple is <code>mcap_usd / tvl_usd</code>. In <code>fitCategoryMultiples</code> (lib/model.ts) each category's multiple is the <strong>median</strong> of its members' multiples, shrunk toward the global median in log space with weight n/(n+4): a category priced by 3 protocols leans on the global figure, one priced by 30 mostly stands on its own. Categories with fewer than 3 tokenized members use the global median outright. <code>impliedValueUsd</code> is then one multiplication — TVL × the category multiple — and <code>multipleFor</code> shows which figure each protocol received. No protocol name is hardcoded anywhere in the fit.</p>
+      <p>The fit runs on <span data-fill="fit_n">—</span> tokenized protocols. <span data-fill="zero_mcap">—</span> protocols record a market cap of exactly $0 in the snapshot and are excluded from the fit: a zero multiple carries no valuation signal. Tokenized and pre-token protocols are never mixed — the board holds only protocols that record no token (mcap, gecko id and symbol all null), and it draws the same product-type line the watchlist definition draws: wrapped, staked or bridged products of a token that already trades (WBTC is the snapshot notes' own example) are not launches waiting to happen, so bridge, liquid-staking and restaking product categories, exchange-fronted names and version-suffixed names sit aside. The board applies that line without the watchlist's $50M floor — the floor is a size line, the product-type line is a kind line, and only the kind line is kept. The trading set is a separate view.</p>
+    </article>
+    <article class="panel">
+      <h2>The out-of-sample test</h2>
+      <p><code>validateOutOfSample</code> splits the fit set by slug order and holds out every third protocol (train <span data-fill="train_n">—</span>, held out <span data-fill="test_n">—</span>). The model is fitted on the training part only — category medians, shrinkage and the global fallback all come from training figures, so no held-out number can leak in — and then scored against the held-out protocols' real market caps:</p>
+      <table class="mini">
+        <tr><th>Model</th><th class="num">Median error</th></tr>
+        <tr><td>This model (category medians, shrunk)</td><td class="num" data-fill="oos_median_ape2">—</td></tr>
+        <tr><td>Global median only</td><td class="num" data-fill="oos_global">—</td></tr>
+        <tr><td>Flat 0.25 × TVL (unfitted)</td><td class="num" data-fill="oos_flat">—</td></tr>
+      </table>
+      <p>Rank correlation on the held-out set (Spearman ρ) is <span data-fill="oos_spearman">—</span>. Growth and age adjustments were fitted the same way during development and <strong>rejected</strong>: 5-fold cross-validation inside the training set scored them worse than the plain category model, and the held-out split agreed. What ships is what survived.</p>
+      <p class="honest">Read the error plainly: half of the held-out protocols' real market caps landed within ±<span data-fill="oos_median_ape3">—</span> of the estimate — a median factor of ×/<span data-fill="oos_factor2">—</span>. These are order-of-magnitude rankings for deciding where farming time goes, not price predictions.</p>
+    </article>
+    <article class="panel">
+      <h2>The farm plans</h2>
+      <p>Every board row carries a plan generated by <code>farmSteps</code> from the protocol's own facts: its category decides the line of work (supply-and-borrow cycles for lending, two-sided liquidity for a DEX, crossings in both directions for a bridge), its first chain decides the gas token and fee budget, and its TVL band decides the working capital and the number of weeks. Plans state costs and durations because a plan without them is a slogan. Steps are conditional where they must be — a protocol is only said to run a points programme if one is live on its official channels.</p>
+    </article>
+    <article class="panel">
+      <h2>Words and limits</h2>
+      <p>A protocol whose three token fields are null <em>records no token</em> in this snapshot. That is the strongest statement the file supports, and it is the phrase used throughout — the snapshot cannot prove a token does not exist, only that DefiLlama records none. The snapshot is frozen at <span data-fill="as_of2">—</span>; nothing here is live data. Implied values inherit every limit of the multiple method: a category median cannot see team, unlocks, revenue or audits, and the wide out-of-sample error above is the honest size of that blindness.</p>
+    </article>
+  </div>
+</section>
+
+<aside id="detail" class="detail hidden" aria-label="Protocol detail">
+  <button id="detail-close" type="button" aria-label="Close detail">×</button>
+  <div id="detail-content"></div>
+</aside>
+
+<footer>
+  <p>Built from the sealed snapshot only — no network, no live prices. Source: <span data-fill="source2">—</span>. The model, its test and its error are described under “How the model works”.</p>
+</footer>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
